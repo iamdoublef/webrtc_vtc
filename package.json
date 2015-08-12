@@ -1,0 +1,28 @@
+{
+  "name": "webrtc_vtc",
+  "version": "0.0.1",
+  "description": "A server-side webRTC lib to build real-time communications in browser",
+  "main": "server.js",
+  "author": {
+    "name": "iamdoublef",
+    "email": "iamdoublef@163.com"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "ws": ">= 0.0.0",
+    "node-uuid": ">= 1.4.1",
+    "express": "3.1.0"
+  },
+  "keywords": [
+    "webrtc_vtc"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iamdoublef/webrtc_vtc.git"
+  },
+  "homepage": "https://github.com/iamdoublef/webrtc_vtc",
+  "bugs": {
+    "url": "https://github.com/iamdoublef/webrtc_vtc/issues"
+  },
+  "directories": {}
+}

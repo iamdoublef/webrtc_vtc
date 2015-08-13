@@ -5,7 +5,6 @@ var SkyRTC = function() {
     var nativeRTCIceCandidate = (window.mozRTCIceCandidate || window.RTCIceCandidate);
     var nativeRTCSessionDescription = (window.mozRTCSessionDescription || window.RTCSessionDescription); // order is very important: "RTCSessionDescription" defined in Nighly but useless
     var moz = !!navigator.mozGetUserMedia;
-    var Logger = window.console;
     var iceServer = {
         "iceServers": [{
             "url": "stun:stun.l.google.com:19302"
@@ -124,26 +123,28 @@ var SkyRTC = function() {
         };
 
         this.on('_peers', function(data) {
-        	console.log("socket._peers:"+data.connections);
+        	Logger.log("socket._peers:"+data.connections);
             //获取所有服务器上的
             that.connections = data.connections;
             that.me = data.you;
+            that.createPeerConnections();
+            that.addStreams();
             that.emit("get_peers", that.connections);
-            that.emit('connected', socket);
-            that.emit("ready");
+//            that.emit('connected', socket);
+            if(that.connections.length > 0) setTimeout(function(){that.sendOffers();},1000);
         });
 
         this.on("_ice_candidate", function(data) {
         	try{
         		var candidate = new nativeRTCIceCandidate(data.candidate);
         	}catch(e){
-        		console.log("new nativeRTCIceCandidate error ");
+        		Logger.log("new nativeRTCIceCandidate error ");
         		return;
         	}
             var pc = that.peerConnections[data.socketId];
             pc.addIceCandidate(candidate,
-                    function() { console.log("socket.addIceCandidate:");},
-                    function(err) { console.log("socket.addIceCandidate error:"+err); });
+                    function() { Logger.log("socket.addIceCandidate:");},
+                    function(err) { Logger.log("socket.addIceCandidate error:"+err); });
             that.emit('get_ice_candidate', candidate);
         });
 
@@ -191,12 +192,11 @@ var SkyRTC = function() {
             that.emit('alerting', data.socketId);
         });
 
-        this.on('ready', function() {
-            that.createPeerConnections();
-            that.addStreams();
-//            that.addDataChannels();
-            that.sendOffers();
-        });
+//        this.on('ready', function() {
+//            
+////            that.addDataChannels();
+//            setTimeout(that.sendOffers,1000);
+//        });
         this.on('_leaveSuccess', function(data) {
             that.emit('rlease', data.socketId);
         })
@@ -265,6 +265,7 @@ var SkyRTC = function() {
                     that.localMediaStream = stream;
                     that.initializedStreams++;
                     that.emit("stream_created", stream);
+                	Logger.log("skyrtc.prototype.createStream:stream_createdin,itializedStreams="+that.initializedStreams+";numStreams="+this.numStreams);
 //                    if (that.initializedStreams === that.numStreams) {
 //                        that.emit("ready");
 //                    }
@@ -282,24 +283,15 @@ var SkyRTC = function() {
             stream,
             connection;
         for (connection in this.peerConnections) {
+        	Logger.log("skyrtc.prototype.addStreams:connectionid"+connection);
             this.peerConnections[connection].addStream(this.localMediaStream);
         }
     };
 
     //将流绑定到video标签上用于输出
     skyrtc.prototype.attachStream = function(element, stream) {
-//        var element = document.getElementById(domId);
-//        if (navigator.mozGetUserMedia) {
-//            element.mozSrcObject = stream;
-//            element.play();
-//        } else {
-//            element.src = webkitURL.createObjectURL(stream);
-        	console.log("attachStream:domid");
+        	Logger.log("skyrtc.prototype.attachStream:domid");
             attachMediaStream(element, stream);
-//            element.play();
-//        }
-//        element.src = webkitURL.createObjectURL(stream);
-//        attachMediaStream(document.getElementById(domId), stream); 
     };
 
     /***********************信令交换部分*******************************/
@@ -307,12 +299,13 @@ var SkyRTC = function() {
 
     //向所有PeerConnection发送Offer类型信令
     skyrtc.prototype.sendOffers = function() {
+    	Logger.log("skyrtc.prototype.sendOffers:");
         var i, m,
             pc,
             that = this,
             pcCreateOfferCbGen = function(pc, socketId) {
                 return function(session_desc) {
-                	console.log("createOffer session_desc"+session_desc.sdp);
+                	Logger.log("createOffer success socketId:"+socketId+";session_desc");
                     pc.setLocalDescription(session_desc);
                     that.socket.send(JSON.stringify({
                         "eventName": "__offer",
@@ -324,7 +317,7 @@ var SkyRTC = function() {
                 };
             },
             pcCreateOfferErrorCb = function(error) {
-                console.log(error);
+                Logger.log(error);
             };
         for (i = 0, m = this.connections.length; i < m; i++) {
             pc = this.peerConnections[this.connections[i]];
@@ -334,12 +327,14 @@ var SkyRTC = function() {
 
     //接收到Offer类型信令后作为回应返回answer类型信令
     skyrtc.prototype.receiveOffer = function(socketId, sdp) {
-        var pc = this.peerConnections[socketId];
+    	Logger.log("skyrtc.prototype.receiveOffer,socketId"+socketId+";sdp:");
+//        var pc = this.peerConnections[socketId];
         this.sendAnswer(socketId, sdp);
     };
 
     //发送answer类型信令
     skyrtc.prototype.sendAnswer = function(socketId, sdp) {
+    	Logger.log("skyrtc.prototype.sendAnswer,socketId"+socketId+";sdp:");
         var pc = this.peerConnections[socketId];
         var that = this;
         var offer = new RTCSessionDescription({
@@ -348,7 +343,7 @@ var SkyRTC = function() {
           });
         pc.setRemoteDescription(new nativeRTCSessionDescription(offer));
         pc.createAnswer(function(session_desc) {
-        	console.log("createAnswer session_desc:"+session_desc.sdp)
+        	Logger.log("createAnswer session_desc:")
             pc.setLocalDescription(session_desc);
             that.socket.send(JSON.stringify({
                 "eventName": "__answer",
@@ -358,12 +353,13 @@ var SkyRTC = function() {
                 }
             }));
         }, function(error) {
-            console.log(error);
+            Logger.log(error);
         });
     };
 
     //接收到answer类型信令后将对方的session描述写入PeerConnection中
     skyrtc.prototype.receiveAnswer = function(socketId, sdp) {
+    	Logger.log("skyrtc.prototype.receiveAnswer,socketId"+socketId+";sdp:");
         var pc = this.peerConnections[socketId];
         var answer = new RTCSessionDescription({
             type: 'answer',
@@ -378,6 +374,7 @@ var SkyRTC = function() {
 
     //创建与其他用户连接的PeerConnections
     skyrtc.prototype.createPeerConnections = function() {
+    	Logger.log("createPeerConnections");
         var i, m;
         for (i = 0, m = this.connections.length; i < m; i++) {
             this.createPeerConnection(this.connections[i]);
@@ -386,6 +383,7 @@ var SkyRTC = function() {
 
     //创建单个PeerConnection
     skyrtc.prototype.createPeerConnection = function(socketId) {
+    	Logger.log("createPeerConnection socketId:"+socketId);
         var that = this;
         var pc = new PeerConnection(iceServer);
         this.peerConnections[socketId] = pc;
@@ -399,24 +397,17 @@ var SkyRTC = function() {
                         "socketId": socketId
                     }
                 });
+            	Logger.log(socketId+"；onicecandidate:" + msg);
                 that.socket.send(msg);
-                console.log(socketId+"；onicecandidate:" + msg)
             }
             that.emit("pc_get_ice_candidate", evt.candidate, socketId, pc);
         };
 
-//        pc.onopen = function() {
-//            that.emit("pc_opened", socketId, pc);
-//        };
-
         pc.onaddstream = function(evt) {
-            that.emit('pc_add_stream', evt.stream, socketId, pc);
+        	Logger.log("onaddstream");
+            that.emit('pc_add_stream', evt.stream);
         };
 
-//        pc.ondatachannel = function(evt) {
-//            that.addDataChannel(socketId, evt.channel);
-//            that.emit('pc_add_data_channel', evt.channel, socketId, pc);
-//        };
         return pc;
     };
 

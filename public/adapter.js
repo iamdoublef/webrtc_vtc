@@ -23,6 +23,7 @@ function trace(text) {
     text = text.substring(0, text.length - 1);
   }
   console.log((performance.now() / 1000).toFixed(3) + ": " + text);
+  Logger.log((performance.now() / 1000).toFixed(3) + ": " + text,'adapter.js');
 }
 function maybeFixConfiguration(pcConfig) {
   if (!pcConfig) {
@@ -43,7 +44,7 @@ attachEventListener = function (video, type, listener, useCapture) {
 }
 
 if (navigator.mozGetUserMedia) {
-  console.log("This appears to be Firefox");
+  Logger.log("This appears to be Firefox");
 
   webrtcDetectedBrowser = "firefox";
 
@@ -114,20 +115,20 @@ if (navigator.mozGetUserMedia) {
 
   // Attach a media stream to an element.
   attachMediaStream = function(element, stream) {
-    console.log("Attaching media stream");
+    Logger.log("Attaching media stream");
     element.mozSrcObject = stream;
     element.play();
     return element;
   };
 
   reattachMediaStream = function(to, from) {
-    console.log("Reattaching media stream");
+    Logger.log("Reattaching media stream");
     to.mozSrcObject = from.mozSrcObject;
     to.play();
   };
 
 } else if (navigator.webkitGetUserMedia) {
-  console.log("This appears to be Chrome");
+  Logger.log("This appears to be Chrome");
 
   webrtcDetectedBrowser = "chrome";
   // Temporary fix until crbug/374263 is fixed.
@@ -199,7 +200,7 @@ if (navigator.mozGetUserMedia) {
     } else if (typeof element.src !== 'undefined') {
       element.src = URL.createObjectURL(stream);
     } else {
-      console.log('Error attaching stream to element.');
+      Logger.log('Error attaching stream to element.');
     }
     return element;
   };
@@ -208,7 +209,7 @@ if (navigator.mozGetUserMedia) {
     to.src = from.src;
   };
 } else {
-//    var console = console || {
+//    var Logger = Logger || {
 //        "log": function(msg) {}
 //    };
     var createIceServer = function (url, username, password) {
@@ -249,7 +250,7 @@ if (navigator.mozGetUserMedia) {
         if (document.getElementById("WebrtcEverywherePluginId")) {
             return;
         }
-        console.log("installPlugin() called");
+        Logger.log("installPlugin() called");
         var isInternetExplorer = !!((Object.getOwnPropertyDescriptor && Object.getOwnPropertyDescriptor(window, "ActiveXObject")) || ("ActiveXObject" in window));
         var isSafari = !!navigator.userAgent.indexOf('Safari');
 
@@ -266,19 +267,19 @@ if (navigator.mozGetUserMedia) {
         pluginObj.setAttribute('height', '0');
 
         if (pluginObj.isWebRtcPlugin || (typeof navigator.plugins !== "undefined" && (!!navigator.plugins["WebRTC Everywhere"] || navigator.plugins["WebRTC Everywhere Plug-in for Safari"]))) {
-            console.log("Plugin version: " + pluginObj.versionName + ", adapter version: 1.2.1");
+            Logger.log("Plugin version: " + pluginObj.versionName + ", adapter version: 1.2.1");
             if (isInternetExplorer) {
-                console.log("This appears to be Internet Explorer");
+                Logger.log("This appears to be Internet Explorer");
                 webrtcDetectedBrowser = "Internet Explorer";
             }
             else if (isSafari) {
-                console.log("This appears to be Safari");
+                Logger.log("This appears to be Safari");
                 webrtcDetectedBrowser = "Safari";
             }
             else; // any other NAPAPI-capable browser comes here
         }
         else {
-            console.log("Browser does not appear to be WebRTC-capable");
+            Logger.log("Browser does not appear to be WebRTC-capable");
         }
     } // end-of-installPlugin()
 
@@ -287,11 +288,11 @@ if (navigator.mozGetUserMedia) {
     }
     else {
         attachEventListener(window, "load", function () {
-            console.log("onload");
+            Logger.log("onload");
             installPlugin();
         });
         attachEventListener(document, "readystatechange", function () {
-            console.log("onreadystatechange:" + document.readyState);
+            Logger.log("onreadystatechange:" + document.readyState);
             if (document.readyState == "complete") {
                 installPlugin();
             }
@@ -301,7 +302,7 @@ if (navigator.mozGetUserMedia) {
     var getUserMediaDelayed;
     getUserMedia = navigator.getUserMedia = function (constraints, successCallback, errorCallback) {
         if (document.readyState !== "complete") {
-            console.log("readyState = " + document.readyState + ", delaying getUserMedia...");
+            Logger.log("readyState = " + document.readyState + ", delaying getUserMedia...");
             if (!getUserMediaDelayed) {
                 getUserMediaDelayed = true;
                 attachEventListener(document, "readystatechange", function () {
@@ -318,16 +319,16 @@ if (navigator.mozGetUserMedia) {
     }
 
     attachMediaStream = function (element, stream) {
-        console.log("Attaching media stream + complexity");
+        Logger.log("Attaching media stream + complexity");
         if (element.isWebRtcPlugin) {
-        	console.log("Attaching media stream element.isWebRtcPlugin");
+        	Logger.log("Attaching media stream element.isWebRtcPlugin");
             element.src = stream;
             return element;
         }
         else if (element.nodeName.toLowerCase() === 'video') {
-        	console.log("Attaching media stream into video");
+        	Logger.log("Attaching media stream into video");
             if (!element.pluginObj && stream) {
-            	console.log("Attaching media stream into create video");
+            	Logger.log("Attaching media stream into create video");
                 var _pluginObj = document.createElement('object');
                 var _isIE = (Object.getOwnPropertyDescriptor && Object.getOwnPropertyDescriptor(window, "ActiveXObject")) || ("ActiveXObject" in window);
                 if (_isIE) {
@@ -361,7 +362,7 @@ if (navigator.mozGetUserMedia) {
 
                 document.body.appendChild(_pluginObj);
                 if (element.parentNode) {
-                	console.log("Attaching media stream replaceChild" + element.parentNode);
+                	Logger.log("Attaching media stream replaceChild" + element.parentNode);
                     element.parentNode.replaceChild(_pluginObj, element); // replace (and remove) element
                     // add element again to be sure any query() will succeed
                     document.body.appendChild(element);
@@ -370,7 +371,7 @@ if (navigator.mozGetUserMedia) {
             }
 
             if (element.pluginObj) {
-            	console.log("Attaching media stream had pluginObj");
+            	Logger.log("Attaching media stream had pluginObj");
                 element.pluginObj.bindEventListener('play', function (objvid) {
                     if (element.pluginObj) {
                         if (element.pluginObj.getAttribute("autowidth") && objvid.videoWidth) {
@@ -428,7 +429,7 @@ if (navigator.mozGetUserMedia) {
     var getSourcesDelayed;
     MediaStreamTrack.getSources = function (gotSources) { // not part of the standard (at least, haven't found it)
         if (document.readyState !== "complete") {
-            console.log("readyState = " + document.readyState + ", delaying getSources...");
+            Logger.log("readyState = " + document.readyState + ", delaying getSources...");
             if (!getSourcesDelayed) {
                 getSourcesDelayed = true;
                 attachEventListener(document, "readystatechange", function () {

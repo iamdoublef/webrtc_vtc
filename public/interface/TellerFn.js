@@ -24,7 +24,7 @@ Teller.Fn = new (function() {
 	  try {
 			// 成功创建WebSocket连接
 			rtc.on("connected", function(socket) {
-				console.log("connected=" + socket);
+				logger.log("connected=" + socket,jsUrl);
 			});
 			// 创建本地视频流成功
 			rtc.on("stream_created", function(stream) {
@@ -88,15 +88,16 @@ Teller.Fn = new (function() {
 		    title: 'local Video',
 		    id:'videosWidow',
 		    height: 300,
-		    width: 400,
-		    
+		    width: 380,
+		    x:800,
+		    y:200,
 		    layout: 'fit',
 		    resizable:false,
 		    closable:false,
 		    closeAction:'hide',
 		    constrain:true,
 		    renderTo:Ext.getBody(), 
-		    html:'<video id="localVideoDiv" autoplay></video>'
+		    html:'<video id="localVideoDiv" autoplay width=100% height=100%></video>'
 		}).show();
 //		Ext.getCmp('localvideo').hide();
 	};
@@ -108,14 +109,16 @@ Teller.Fn = new (function() {
 		    title: 'remoteVideo',
 		    id:'remoteWindow',
 		    height: 300,
-		    width: 400,
+		    width: 380,
+		    x:800,
+		    y:400,
 		    layout: 'fit',
 		    resizable:false,
 		    closable:false,
 		    closeAction:'hide',
 		    constrain:true,
 		    renderTo:Ext.getBody(), 
-		    html:'<video id="remoteVideoDiv"></video>'
+		    html:'<video id="remoteVideoDiv" width=100% height=100%></video>'
 		}).show();
 		Ext.getCmp('remoteWindow').hide();
 	};
@@ -212,7 +215,6 @@ Teller.Fn = new (function() {
 //	        	 parent.removeChild(childs[i]);
 //	         }
 	    Ext.getCmp('remoteWindow').hide();
-		
 		logger.debug("releaseEvt result:" , jsUrl);
 	}
 	
@@ -283,5 +285,12 @@ Teller.Fn = new (function() {
 		}
 	}
 	
+	/************************************************************/
+	//拍照 fileName 保存到本地的文件路径
+	this.takePhoto =  function(fileName, canvas){
+		if(!localVideo)return false;
+	    drawImage(canvas.getContext("2d"), localVideo, 0, 0, canvas.width, canvas.height);
+		logger.debug('TellerEvt.js takePhoto event, fileName :'+fileName, jsUrl);
+	}
 	
 })();

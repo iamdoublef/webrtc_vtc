@@ -31,10 +31,24 @@ Fn={};
 Fn.serverLog =  new (function(){  
     var c = this; 
     c.log = c.warn = c.debug = c.info = c.trace= c.error = c.fatal = function(logInfo, jsUrl){
+    	var logMsg = Util.DateUtil.getTime() + '|'　+ jsUrl + ' | ' + logInfo + '';
+    	Util.Logger.debug(logMsg);
     	var _logElem = document.getElementById("TellerPage.LogInfo");
-    	_logElem.value += (Util.DateUtil.getTime() + '|'　+ jsUrl + ' | ' + logInfo + '\n\n');
+    	_logElem.value += (logMsg+'\n');
     };  
-})();  
+})();
+
+var Logger = new (function(){  
+    var c = this; 
+    c.log = c.warn = c.debug = c.info = c.trace= c.error = c.fatal = function(logInfo, jsUrl){
+    	var logMsg = Util.DateUtil.getTime() + '|'　+ jsUrl + ' | ' + logInfo + '';
+    	console.log(logMsg);
+    	Util.Logger.debug(logMsg);
+    };  
+})();
+
+Logger.log('\n\n');
+
 
 //!function 清空Id为"LogInfo"的文本框
 function _clearLog()
@@ -180,7 +194,7 @@ Fn.PhoneEvent = new (function() {
 									</tr>
 									<tr>
 										<td ><input type="button" value="release" onClick="Teller.Fn.release();"  /></td>
-<!-- 										<td ><input type="button" value="desktopCtlStart" onClick="Desktop.desktopCtlStart();"  /></td> -->
+										<td ><input type="button" value="snap" onClick="Teller.Fn.takePhoto('c:\temp\image.bmp',document.querySelector('canvas'));"  /></td>
 										<td ><input type="button" value="sendmsg" onClick="_sendMsg();"  /></td>
 										
 									</tr>
@@ -188,6 +202,12 @@ Fn.PhoneEvent = new (function() {
 										<td colspan=3>
 											<textarea id="msgtext" rows="3"></textarea>
 										</td>
+									</tr>
+									<tr>
+										<td colspan=3>
+											<canvas width=380 height=300></canvas>
+										</td>
+									
 									</tr>
 								</table>
 							</div>

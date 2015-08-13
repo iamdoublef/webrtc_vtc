@@ -37,7 +37,14 @@ function SkyRTC() {
 			curRoom;
 
 		curRoom = this.rooms[room] = this.rooms[room] || [];
-
+		
+		for (i = 0, m = curRoom.length; i < m; i++) {
+			curSocket = curRoom[i];
+			if (curSocket.id === socket.id) {
+				return;
+			}
+		}
+		
 		for (i = 0, m = curRoom.length; i < m; i++) {
 			curSocket = curRoom[i];
 			if (curSocket.id === socket.id) {

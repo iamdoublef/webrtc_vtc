@@ -5,7 +5,7 @@ var SkyRTC = function() {
     var nativeRTCIceCandidate = (window.mozRTCIceCandidate || window.RTCIceCandidate);
     var nativeRTCSessionDescription = (window.mozRTCSessionDescription || window.RTCSessionDescription); // order is very important: "RTCSessionDescription" defined in Nighly but useless
     var moz = !!navigator.mozGetUserMedia;
-    var iceServer = {
+    var iceServer =   {
         "iceServers": [{
             "url": "stun:stun.l.google.com:19302"
         }]
@@ -88,12 +88,12 @@ var SkyRTC = function() {
         
         socket = this.socket = new WebSocket(server);
         socket.onopen = function() {
-            console.log("socket_opened_event");
+            Logger.log("socket_opened_event");
             that.emit("socket_opened", socket);
         };
 
         socket.onmessage = function(message) {
-        	 console.log("socket_receive_message:" + message.data);
+        	 Logger.log("socket_receive_message:" + message.data);
             var json = JSON.parse(message.data);
             if (json.eventName) {
                 that.emit(json.eventName, json.data);
@@ -103,22 +103,22 @@ var SkyRTC = function() {
         };
 
         socket.onerror = function(error) {
-        	console.log("onerror:"+error);
+        	Logger.log("onerror:"+error);
             that.emit("socket_error", error, socket);
         };
 
         socket.onclose = function(data) {
-        	console.log("socket.onclose:"+data);
+        	Logger.log("socket.onclose:"+data);
             that.localMediaStream.close();
             var pcs = that.peerConnections;
             for (i = pcs.length; i--;) {
                 that.closePeerConnection(pcs[i]);
+                pcs[i] = null;
             }
             that.peerConnections = [];
 //            that.dataChannels = {};
 //            that.fileChannels = {};
             that.connections = [];
-            that.fileData = {};
             that.emit('socket_closed', socket);
         };
 
@@ -128,22 +128,28 @@ var SkyRTC = function() {
             that.connections = data.connections;
             that.me = data.you;
             that.createPeerConnections();
-            that.addStreams();
-            that.emit("get_peers", that.connections);
-//            that.emit('connected', socket);
-            if(that.connections.length > 0) setTimeout(function(){that.sendOffers();},1000);
+            setTimeout(function(){
+            	that.addStreams();
+            	that.emit("get_peers", that.connections);
+//              that.emit('connected', socket);
+            	if(that.connections.length > 0) setTimeout(function(){that.sendOffers();}, 1000);
+            },1000);
         });
 
         this.on("_ice_candidate", function(data) {
         	try{
         		var candidate = new nativeRTCIceCandidate(data.candidate);
+//        			new nativeRTCIceCandidate({
+//        				      sdpMLineIndex: data.label,
+//        				      candidate: data.candidate
+//        				    });
         	}catch(e){
         		Logger.log("new nativeRTCIceCandidate error ");
         		return;
         	}
             var pc = that.peerConnections[data.socketId];
             pc.addIceCandidate(candidate,
-                    function() { Logger.log("socket.addIceCandidate:");},
+                    function() { Logger.log("socket.addIceCandidate success socketId:"+data.socketId);},
                     function(err) { Logger.log("socket.addIceCandidate error:"+err); });
             that.emit('get_ice_candidate', candidate);
         });
@@ -152,8 +158,12 @@ var SkyRTC = function() {
             that.connections.push(data.socketId);
             var pc = that.createPeerConnection(data.socketId),
                 i, m;
-            pc.addStream(that.localMediaStream);
-            that.emit('new_peer', data.socketId);
+            setTimeout(function(){
+            	Logger.log("addStream");
+            	pc.addStream(that.localMediaStream);
+            	that.emit('new_peer', data.socketId);
+            },1000);
+            
         });
 
         this.on('_remove_peer', function(data) {
@@ -163,6 +173,7 @@ var SkyRTC = function() {
             for (i = cs.length; i--;) {
             	if(cs[i] != that.me){
             		that.closePeerConnection(that.peerConnections[cs[i]]);
+            		that.peerConnections[cs[i]] = null;
                     delete that.peerConnections[cs[i]];
                     delete that.connections[i];
             	}
@@ -265,7 +276,7 @@ var SkyRTC = function() {
                     that.localMediaStream = stream;
                     that.initializedStreams++;
                     that.emit("stream_created", stream);
-                	Logger.log("skyrtc.prototype.createStream:stream_createdin,itializedStreams="+that.initializedStreams+";numStreams="+this.numStreams);
+                	Logger.log("skyrtc.prototype.createStream:stream_createdin,itializedStreams="+that.initializedStreams+";numStreams="+that.numStreams);
 //                    if (that.initializedStreams === that.numStreams) {
 //                        that.emit("ready");
 //                    }
@@ -285,6 +296,7 @@ var SkyRTC = function() {
         for (connection in this.peerConnections) {
         	Logger.log("skyrtc.prototype.addStreams:connectionid"+connection);
             this.peerConnections[connection].addStream(this.localMediaStream);
+            Logger.log("skyrtc.prototype.addStreams finish:connectionid"+connection);
         }
     };
 
@@ -379,6 +391,8 @@ var SkyRTC = function() {
         for (i = 0, m = this.connections.length; i < m; i++) {
             this.createPeerConnection(this.connections[i]);
         }
+        
+        Logger.log("createPeerConnections finish！");
     };
 
     //创建单个PeerConnection
@@ -388,6 +402,7 @@ var SkyRTC = function() {
         var pc = new PeerConnection(iceServer);
         this.peerConnections[socketId] = pc;
         pc.onicecandidate = function(evt) {
+        	Logger.log("onicecandidate socketId:"+socketId+";evt.candidate.candidate:"+evt.candidate.candidate );
             if (evt.candidate){
             	var msg = JSON.stringify({
                     "eventName": "__ice_candidate",
@@ -397,10 +412,9 @@ var SkyRTC = function() {
                         "socketId": socketId
                     }
                 });
-            	Logger.log(socketId+"；onicecandidate:" + msg);
                 that.socket.send(msg);
             }
-            that.emit("pc_get_ice_candidate", evt.candidate, socketId, pc);
+            that.emit("pc_get_ice_candidate", evt.candidate, socketId);
         };
 
         pc.onaddstream = function(evt) {
@@ -408,6 +422,7 @@ var SkyRTC = function() {
             that.emit('pc_add_stream', evt.stream);
         };
 
+        Logger.log("createPeerConnection finish socketId:"+socketId );
         return pc;
     };
 
@@ -416,6 +431,7 @@ var SkyRTC = function() {
         if (!pc) return;
         Logger.info('closePeerConnection');
         pc.close();
+        pc = null;
     };
 
 

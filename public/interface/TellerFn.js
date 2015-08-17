@@ -5,12 +5,13 @@ Teller.Fn = new (function() {
 	var phoneEvent = null;
 	var tellerEvt = null;
 	var logger = null;
-	var jsUrl = "teller/huawei/TellerFn.js";
+	var jsUrl = "teller/webrtc/TellerFn.js";
 	var audio = null;
 	var rtc = null;
 	var me =  this;
 	var remoteVideo = null;
 	var localVideo = null;
+	var Ext  = null;
 	
 	this.init = function() {
 		if(!logger) logger = top.Fn.serverLog;
@@ -19,13 +20,24 @@ Teller.Fn = new (function() {
 		if (!audio)  audio = Util.Audio;
 		if (!phoneEvent) phoneEvent = top.Fn.PhoneEvent;
 		if (!tellerEvt) tellerEvt = Teller.Evt;
+		if (!Ext) Ext = top.Ext;
 		
 			
-	  try {
+//	  try {
+			// 成功创建WebSocket连接
+			rtc.on("socket_opened", function(socket) {
+				logger.log("socket_opened=" + socket,jsUrl);
+				rtc.createStream({
+					"video" : true,
+					"audio" : true
+				});
+			});
+			
 			// 成功创建WebSocket连接
 			rtc.on("connected", function(socket) {
 				logger.log("connected=" + socket,jsUrl);
 			});
+			
 			// 创建本地视频流成功
 			rtc.on("stream_created", function(stream) {
 //				var newVideo = document.createElement("video"),
@@ -34,9 +46,11 @@ Teller.Fn = new (function() {
 //			    newVideo.setAttribute("id", id);
 //			    var parentNode = document.getElementById('localVideoDiv');
 //			    parentNode.appendChild(newVideo);
-				
-				if(!localVideo)localVideo = document.getElementById('localVideoDiv');
+				//Ext.getCmp('localWindow').show();
+				if(!localVideo)localVideo = top.document.getElementById('localVideoDiv');
 			    rtc.attachStream(localVideo, stream);
+			    me.loginSucc();
+			    
 			});
 			// 创建本地视频流失败
 			rtc.on("stream_create_error", function() {
@@ -52,30 +66,30 @@ Teller.Fn = new (function() {
 			rtc.on('alerting',this.alerting);
 			
 			//接收到其他用户的视频流
-			  rtc.on('pc_add_stream', function(stream, socketId) {
+			  rtc.on('pc_add_stream', function(stream) {
 //				  var newVideo = document.createElement("video"),
 //			        id = "remoteVideo";
 //			    newVideo.setAttribute("autoplay", "autoplay");
 //			    newVideo.setAttribute("id", id);
 //			    var parentNode = document.getElementById('remoteVideoDiv');
 //			    parentNode.appendChild(newVideo);
-				  if(!remoteVideo)remoteVideo = document.getElementById('remoteVideoDiv');
+				if(!remoteVideo)remoteVideo = top.document.getElementById('remoteVideoDiv');
 			    rtc.attachStream(remoteVideo, stream);
+			    Ext.getCmp('localWindow').show();
 			    Ext.getCmp('remoteWindow').show();
-			    
+			    me.talkingEvt();
 			  });
 			  
 			  //离开会议
 			  rtc.on('remove_peer', this.releaseEvt);
-			//离开会议
 			  rtc.on('msgArrive', this.msgArrive);
 			
 			me.createVideoWindow();
 			me.createRemoteWindow();
-			
-		} catch (e) {
-			tellerEvt.tellerOcxFailed(e.name+";"+e.message);
-		}
+			phoneEvent.init(me);
+//		} catch (e) {
+//			tellerEvt.tellerOcxFailed(e.name+";"+e.message);
+//		}
 		
 	};
 	
@@ -86,7 +100,7 @@ Teller.Fn = new (function() {
 		
 		Ext.create('Ext.window.Window', {
 		    title: 'local Video',
-		    id:'videosWidow',
+		    id:'localWindow',
 		    height: 300,
 		    width: 380,
 		    x:800,
@@ -99,7 +113,7 @@ Teller.Fn = new (function() {
 		    renderTo:Ext.getBody(), 
 		    html:'<video id="localVideoDiv" autoplay width=100% height=100%></video>'
 		}).show();
-//		Ext.getCmp('localvideo').hide();
+		Ext.getCmp('localWindow').hide();
 	};
 	
 	this.createRemoteWindow = function(){
@@ -131,13 +145,18 @@ Teller.Fn = new (function() {
 	 */
 	this.login = function(agentNo, password) {
 		logger.debug("login:agentNo=" + agentNo, jsUrl);
-//		rtc.connect("ws://192.168.10.100:3000/");
+		rtc.connect(Teller.websocketurl);
 //		rtc.connect("ws:" + window.location.href.substring(window.location.protocol.length).split(':')[0]+":3000");
-		rtc.connect("ws:" + window.location.href.substring(window.location.protocol.length).split('#')[0], window.location.hash.slice(1));
-		rtc.createStream({
-			"video" : true,
-			"audio" : true
-		});
+//		rtc.connect("ws:" + window.location.href.substring(window.location.protocol.length).split('#')[0], window.location.hash.slice(1));
+	}
+	
+	// 柜员登录成功事件
+	this.loginSucc = function() {
+		logger.info("TellerEvt.js loginSucc:");
+		phoneEvent.loginSucc();
+		setTimeout(function(){
+			phoneEvent.idle();
+		},500);
 	}
 	/**
 	 * 登出
@@ -174,7 +193,10 @@ Teller.Fn = new (function() {
 	 */
 	this.call = function() {
 		logger.debug("TellerFn.js TellerCall", jsUrl);
-		rtc.call();
+		rtc.join();
+		setTimeout(function(){
+			rtc.call();
+		},1000);
 		logger.debug("TellerFn.js TellerCall, result:", jsUrl);
 	}
 	
@@ -187,6 +209,15 @@ Teller.Fn = new (function() {
 		rtc.join();
 		logger.debug("TellerFn.js TellerAnswer, result:" + result, jsUrl);
 	}
+	
+	/**
+	 * 应答
+	 */
+	this.talkingEvt = function() {
+		// 呼叫建立事件
+		logger.info('TellerEvt.js talking：');
+		phoneEvent.talking(Util.DateUtil.getTime(),"vtm101");
+	}
 
 	/**
 	 * 释放
@@ -197,7 +228,6 @@ Teller.Fn = new (function() {
 		// 创建本地视频流
 		rtc.leave();
 		logger.debug("TellerReleaseCall result:" + result, jsUrl);
-
 	}
 	
 	
@@ -214,8 +244,11 @@ Teller.Fn = new (function() {
 //	         for(var i=childs.length;i--;i>0){
 //	        	 parent.removeChild(childs[i]);
 //	         }
+	    Ext.getCmp('localWindow').hide();
 	    Ext.getCmp('remoteWindow').hide();
-		logger.debug("releaseEvt result:" , jsUrl);
+	    setTimeout(function(){
+			phoneEvent.idle();
+		},500);
 	}
 	
 
@@ -254,7 +287,7 @@ Teller.Fn = new (function() {
 	/**
 	 * VTA发送消息给VTM 参数 sendMsg:消息内容
 	 */
-	this.sendMsg = function(msg) {
+	this.sendMsgToTerm = function(msg) {
 		logger.debug("TellerFn.js sendMsgToTerm:" + msg, jsUrl);
 		//广播消息
 	    rtc.sendMsg(msg);

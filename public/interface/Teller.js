@@ -7,6 +7,10 @@ Teller ={
 	minWidth : 250,//窗口最少化的宽度
 	heightRatio : 3,//高度占比
 	widthRatio : 4, //宽度占比
+//	websocketurl: "ws://127.0.0.1:3002/",
+	websocketurl : (function(){
+		return "ws:" + window.location.href.substring(window.location.protocol.length).split('#')[0];
+	}()),
 	error:{
 		//自定义  evt error
 		'0000':'操作失败，请稍候再试',

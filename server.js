@@ -1,23 +1,13 @@
-console.log('init');
-
 var express = require('express');
 var app = express();
 var server = require('http').createServer(app);
-console.log('server:'+server);
-var SkyRTC = require('./skyrtc').listen(server);
-console.log('SkyRTC:'+SkyRTC);
+var SkyRTC = require('./packages/skyrtc').listen(server);
 var path = require("path");
-console.log('path'+ path);
-
 var port = process.env.PORT || 3002;
-console.log('port'+ port);
-
-server.listen(port);
 
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/', function(req, res) {
-	
 	res.sendfile(__dirname + '/index.html');
 });
 
@@ -54,5 +44,10 @@ SkyRTC.rtc.on('answer', function(socket, answer) {
 });
 
 SkyRTC.rtc.on('error', function(error) {
-	console.log("error:" + error.message);
+	console.error(error);
 });
+
+module.exports.start = function() {
+	server.listen(port);
+//	throw new Error("hello error");
+};

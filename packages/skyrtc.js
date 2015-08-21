@@ -2,6 +2,7 @@ var WebSocketServer = require('ws').Server;
 var UUID = require('node-uuid');
 var events = require('events');
 var util = require('util');
+var message = new (require('./message'))();
 var errorCb = function(rtc) {
 	return function(error) {
 		if (error) {
@@ -16,20 +17,17 @@ function SkyRTC() {
 	
 	this.on('__call', function(data, socket) {
 		console.log("__call:"+socket.id);
-		var msg =  JSON.stringify({
-			"eventName": "_alerting",
-			"data": {
-				"socketId": socket.id
-			}
+		var msg = message.createEventMsg("event","_alerting",{
+			"socketId": socket.id
 		});
 		
-		this.sendMsgToOthers(msg,socket.id, errorCb);
+		this.sendMsgToOthers(msg, socket.id, errorCb);
 		this.emit('new_call', socket);
 	});
 	
 	
 	this.on('__join', function(data, socket) {
-		console.log(this.sockets.length);
+		console.log("__join: count:"+this.sockets.length+'socketId:'+socket.id);
 		var ids = [],
 			i, m,
 			room = data.room || "__default",
@@ -51,24 +49,23 @@ function SkyRTC() {
 				continue;
 			}
 			ids.push(curSocket.id);
-			curSocket.send(JSON.stringify({
-				"eventName": "_new_peer",
-				"data": {
-					"socketId": socket.id
-				}
-			}), errorCb);
+			
+			var msg = message.createEventMsg("event","_new_peer",{
+				"socketId": socket.id
+			});
+			
+			curSocket.send(msg, errorCb);
 		}
 
 		curRoom.push(socket);
 		socket.room = room;
+		
+		var msg = message.createEventMsg("event","_peers",{
+			"connections": ids,
+			"you": socket.id
+		});
 
-		socket.send(JSON.stringify({
-			"eventName": "_peers",
-			"data": {
-				"connections": ids,
-				"you": socket.id
-			}
-		}), errorCb);
+		socket.send(msg, errorCb);
 
 		this.emit('new_peer', socket, room);
 	});
@@ -78,13 +75,12 @@ function SkyRTC() {
 	});
 	
 	this.on('__send_msg', function(data, socket){
-		var msg = JSON.stringify({
-			"eventName": "_msg_arrive",
-			"data": {
-				"socketId": socket.id,
-				"msg":data.msg
-			}
+		
+		var msg = message.createEventMsg("event","_msg_arrive",{
+			"socketId": socket.id,
+			"msg":data.msg
 		});
+		
 		this.sendMsgToOthers(msg,socket.id, errorCb);
 	});
 
@@ -92,14 +88,14 @@ function SkyRTC() {
 		var soc = this.getSocket(data.socketId);
 
 		if (soc) {
-			soc.send(JSON.stringify({
-				"eventName": "_ice_candidate",
-				"data": {
-					"label": data.label,
-					"candidate": data.candidate,
-					"socketId": socket.id
-				}
-			}), errorCb);
+			
+			var msg = message.createEventMsg("event","_ice_candidate",{
+				"label": data.label,
+				"candidate": data.candidate,
+				"socketId": socket.id
+			});
+			
+			soc.send(msg, errorCb);
 
 			this.emit('ice_candidate', socket, data);
 		}
@@ -109,13 +105,12 @@ function SkyRTC() {
 		var soc = this.getSocket(data.socketId);
 
 		if (soc) {
-			soc.send(JSON.stringify({
-				"eventName": "_offer",
-				"data": {
-					"sdp": data.sdp,
-					"socketId": socket.id
-				}
-			}), errorCb);
+			var msg = message.createEventMsg("event","_offer",{
+				"sdp": data.sdp,
+				"socketId": socket.id
+			});
+			
+			soc.send(msg, errorCb);
 		}
 		this.emit('offer', socket, data);
 	});
@@ -123,13 +118,11 @@ function SkyRTC() {
 	this.on('__answer', function(data, socket) {
 		var soc = this.getSocket(data.socketId);
 		if (soc) {
-			soc.send(JSON.stringify({
-				"eventName": "_answer",
-				"data": {
-					"sdp": data.sdp,
-					"socketId": socket.id
-				}
-			}), errorCb);
+			var msg = message.createEventMsg("event","_answer",{
+				"sdp": data.sdp,
+				"socketId": socket.id
+			});
+			soc.send(msg, errorCb);
 			this.emit('answer', socket, data);
 		}
 	});
@@ -228,12 +221,12 @@ SkyRTC.prototype.leaveRoom = function(data, socket) {
 				//if (curRoom[i].id === socket.id) {
 				//	continue;
 				//}
-				curRoom[i].send(JSON.stringify({
-					"eventName" : "_remove_peer",
-					"data" : {
-						"socketId" : socket.id
-					}
-				}), errorCb);
+				
+				var msg = message.createEventMsg("event","_remove_peer",{
+					"socketId": socket.id
+				});
+				
+				curRoom[i].send(msg, errorCb);
 			}
 		} catch (e) {
 			errorCb(e.name+";"+e.message);
@@ -278,12 +271,11 @@ SkyRTC.prototype.init = function(socket) {
 					if (curRoom[i].id === socket.id) {
 						continue;
 					}
-					curRoom[i].send(JSON.stringify({
-						"eventName" : "_remove_peer",
-						"data" : {
-							"socketId" : socket.id
-						}
-					}), errorCb);
+					
+					var msg = message.createEventMsg("event","_remove_peer",{
+						"socketId": socket.id
+					});
+					curRoom[i].send(msg, errorCb);
 				}
 			} catch (e) {
 				errorCb(e.name+";"+e.message);

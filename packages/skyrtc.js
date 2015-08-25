@@ -12,7 +12,6 @@ var errorCb = function(rtc) {
 };
 
 function SkyRTC() {
-	this.sockets = [];
 	this.rooms = {};
 	
 	this.on('__call', function(data, socket) {

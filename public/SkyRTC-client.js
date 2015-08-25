@@ -354,19 +354,21 @@ var SkyRTC = function() {
             sdp: sdp
           });
         pc.setRemoteDescription(new nativeRTCSessionDescription(offer));
-        pc.createAnswer(function(session_desc) {
-        	Logger.log("createAnswer session_desc:")
-            pc.setLocalDescription(session_desc);
-            that.socket.send(JSON.stringify({
-                "eventName": "__answer",
-                "data": {
-                    "socketId": socketId,
-                    "sdp": session_desc.sdp
-                }
-            }));
-        }, function(error) {
-            Logger.log(error);
-        });
+        setTimeout(function(){
+        	 pc.createAnswer(function(session_desc) {
+             	Logger.log("createAnswer session_desc:")
+                 pc.setLocalDescription(session_desc);
+                 that.socket.send(JSON.stringify({
+                     "eventName": "__answer",
+                     "data": {
+                         "socketId": socketId,
+                         "sdp": session_desc.sdp
+                     }
+                 }));
+             }, function(error) {
+                 Logger.log(error);
+             });
+        },200);
     };
 
     //接收到answer类型信令后将对方的session描述写入PeerConnection中
